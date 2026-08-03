@@ -1,85 +1,45 @@
-const {
-    SlashCommandBuilder,
-    PermissionFlagsBits,
-    ChannelType
-} = require("discord.js");
-
-const fs = require("fs");
-const path = require("path");
-
-const configPath = path.join(__dirname, "../../data/config.json");
+const { SlashCommandBuilder, PermissionFlagsBits, Embeds } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName("qa")
-        .setDescription("QA System Commands")
+        .setName('qa')
+        .setDescription('Configure QA Bot channels and settings')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-        .addSubcommand(sub =>
-            sub
-                .setName("setup")
-                .setDescription("Setup the QA system")
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('setup')
+                .setDescription('Set up the upcoming tests and live testing channels')
                 .addChannelOption(option =>
-                    option
-                        .setName("upcoming_channel")
-                        .setDescription("Upcoming Tests Channel")
-                        .addChannelTypes(ChannelType.GuildText)
-                        .setRequired(true)
-                )
+                    option.setName('upcoming_channel')
+                        .setDescription('Channel where upcoming tests are posted')
+                        .setRequired(true))
                 .addChannelOption(option =>
-                    option
-                        .setName("testing_channel")
-                        .setDescription("Live Testing Channel")
-                        .addChannelTypes(ChannelType.GuildText)
-                        .setRequired(true)
-                )
+                    option.setName('testing_channel')
+                        .setDescription('Channel where live tests are posted')
+                        .setRequired(true))
         ),
 
     async execute(interaction) {
+        const subcommand = interaction.options.getSubcommand();
 
-        const upcoming =
-            interaction.options.getChannel("upcoming_channel");
+        if (subcommand === 'setup') {
+            const upcomingChannel = interaction.options.getChannel('upcoming_channel');
+            const testingChannel = interaction.options.getChannel('testing_channel');
 
-        const testing =
-            interaction.options.getChannel("testing_channel");
+            // Save configuration logic goes here (e.g., database or JSON storage)
 
-        let config = { guilds: {} };
+            const embed = {
+                title: '⚙️ QA Bot Setup Complete',
+                description: 'The channels have been successfully configured for your QA community.',
+                color: 0x2ECC71,
+                fields: [
+                    { name: 'Upcoming Tests Channel', value: `${upcomingChannel}`, inline: true },
+                    { name: 'Testing Channel', value: `${testingChannel}`, inline: true }
+                ],
+                timestamp: new Date().toISOString()
+            };
 
-        if (fs.existsSync(configPath)) {
-            config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+            await interaction.reply({ embeds: [embed], ephemeral: true });
         }
-
-        config.guilds[interaction.guild.id] = {
-            upcomingChannel: upcoming.id,
-            testingChannel: testing.id
-        };
-
-        fs.writeFileSync(
-            configPath,
-            JSON.stringify(config, null, 4)
-        );
-
-        await interaction.reply({
-            embeds: [
-                {
-                    color: 0x2ECC71,
-                    title: "✅ QA Setup Complete",
-                    fields: [
-                        {
-                            name: "📢 Upcoming Tests",
-                            value: `<#${upcoming.id}>`
-                        },
-                        {
-                            name: "🧪 Testing Channel",
-                            value: `<#${testing.id}>`
-                        }
-                    ],
-                    footer: {
-                        text: "QA Bot"
-                    },
-                    timestamp: new Date()
-                }
-            ]
-        });
-
     }
 };
