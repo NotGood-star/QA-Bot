@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, Embeds } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -25,8 +25,6 @@ module.exports = {
         if (subcommand === 'setup') {
             const upcomingChannel = interaction.options.getChannel('upcoming_channel');
             const testingChannel = interaction.options.getChannel('testing_channel');
-
-            // Save configuration logic goes here (e.g., database or JSON storage)
 
             const embed = {
                 title: '⚙️ QA Bot Setup Complete',
