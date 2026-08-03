@@ -1,28 +1,14 @@
 {
   "name": "qa-bot",
   "version": "1.0.0",
-  "description": "QA Discord Bot for Roblox Playtesting",
+  "description": "Discord bot for Roblox QA communities",
   "main": "index.js",
-  "type": "commonjs",
   "scripts": {
     "start": "node index.js",
     "deploy": "node deploy-commands.js"
   },
-  "keywords": [
-    "discord",
-    "bot",
-    "qa",
-    "roblox",
-    "testing"
-  ],
-  "author": "Bhairav",
-  "license": "MIT",
   "dependencies": {
-    "discord.js": "^14.21.0",
-    "dotenv": "^16.6.1",
-    "express": "^4.21.2"
-  },
-  "engines": {
-    "node": ">=20.0.0"
+    "discord.js": "^14.14.0",
+    "dotenv": "^16.4.5"
   }
 }
