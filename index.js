@@ -1,7 +1,19 @@
 const { Client, GatewayIntentBits, Partials, Collection } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
 require('dotenv').config();
+
+// Create a simple HTTP server to satisfy Render's port-binding requirement for Web Services
+const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('QA Bot is running!\n');
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`HTTP server is listening on port ${PORT}`);
+});
 
 // Initialize Discord Client with required intents and partials for modals/threads
 const client = new Client({
