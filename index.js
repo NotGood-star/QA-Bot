@@ -4,7 +4,6 @@ const path = require('path');
 const http = require('http');
 require('dotenv').config();
 
-// Create a simple HTTP server to satisfy Render's port-binding requirement for Web Services
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('QA Bot is running!\n');
@@ -15,7 +14,6 @@ server.listen(PORT, () => {
     console.log(`HTTP server is listening on port ${PORT}`);
 });
 
-// Initialize Discord Client with required intents and partials for modals/threads
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -26,11 +24,10 @@ const client = new Client({
     partials: [Partials.Channel, Partials.Message, Partials.GuildMember]
 });
 
-// Collections for commands and active tests
 client.commands = new Collection();
-client.activeTests = new Map(); // Stores active and upcoming test states in memory/database
+client.activeTests = new Map(); 
+client.guildSettings = new Map(); // Stores setup channels per guild
 
-// Load Command Handler
 const commandsPath = path.join(__dirname, 'commands');
 if (fs.existsSync(commandsPath)) {
     const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
@@ -43,7 +40,6 @@ if (fs.existsSync(commandsPath)) {
     }
 }
 
-// Load Event Handler
 const eventsPath = path.join(__dirname, 'events');
 if (fs.existsSync(eventsPath)) {
     const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
@@ -58,10 +54,8 @@ if (fs.existsSync(eventsPath)) {
     }
 }
 
-// Global Error Handling to prevent crashes
 process.on('unhandledRejection', error => {
     console.error('Unhandled promise rejection:', error);
 });
 
-// Bot Login
 client.login(process.env.DISCORD_TOKEN);
