@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -19,23 +19,28 @@ module.exports = {
                         .setRequired(true))
         ),
 
-    async execute(interaction) {
+    async execute(interaction, client) {
         const subcommand = interaction.options.getSubcommand();
 
         if (subcommand === 'setup') {
             const upcomingChannel = interaction.options.getChannel('upcoming_channel');
             const testingChannel = interaction.options.getChannel('testing_channel');
 
-            const embed = {
-                title: '⚙️ QA Bot Setup Complete',
-                description: 'The channels have been successfully configured for your QA community.',
-                color: 0x2ECC71,
-                fields: [
+            // Save settings to client memory
+            client.guildSettings.set(interaction.guildId, {
+                upcomingChannelId: upcomingChannel.id,
+                testingChannelId: testingChannel.id
+            });
+
+            const embed = new EmbedBuilder()
+                .setTitle('⚙️ QA Bot Setup Complete')
+                .setDescription('The channels have been successfully configured for your QA community.')
+                .setColor(0x2ECC71)
+                .addFields(
                     { name: 'Upcoming Tests Channel', value: `${upcomingChannel}`, inline: true },
                     { name: 'Testing Channel', value: `${testingChannel}`, inline: true }
-                ],
-                timestamp: new Date().toISOString()
-            };
+                )
+                .setTimestamp();
 
             await interaction.reply({ embeds: [embed], ephemeral: true });
         }
