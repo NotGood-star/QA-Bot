@@ -1,19 +1,12 @@
-const { Client, GatewayIntentBits, Partials, Collection } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
+const { Client, GatewayIntentBits, Partials, Collection, REST, Routes, SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const http = require('http');
 require('dotenv').config();
 
-// HTTP server for Render deployment port binding requirement
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('QA Bot is running!\n');
+    res.end('QA Central Bot is running!\n');
 });
-
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`HTTP server is listening on port ${PORT}`);
-});
+server.listen(process.env.PORT || 3000);
 
 const client = new Client({
     intents: [
@@ -26,39 +19,82 @@ const client = new Client({
 });
 
 client.commands = new Collection();
-client.guildSettings = new Map(); // Stores configured channels per guild
-client.pendingTests = new Map();   // Temporary store for modal form inputs
+client.CHANNELS = {
+    REQUEST_CHANNEL: '1533505277146562783',
+    UPCOMING_CHANNEL: '1533505439885693060',
+    TESTING_CHANNEL: '1533505078064058550'
+};
+client.ROBUX_EMOJI = '<:robux:1503781043386319067>';
 
-// Load Commands
-const commandsPath = path.join(__dirname, 'commands');
-if (fs.existsSync(commandsPath)) {
-    const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
-    for (const file of commandFiles) {
-        const filePath = path.join(commandsPath, file);
-        const command = require(filePath);
-        if ('data' in command && 'execute' in command) {
-            client.commands.set(command.data.name, command);
+// Load main test handler logic
+const testHandler = require('./commands/test.js');
+
+client.once('ready', async () => {
+    console.log(`Logged in as ${client.user.tag}!`);
+    const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
+    const commands = [
+        new SlashCommandBuilder()
+            .setName('qa')
+            .setDescription('Post the QA Test Request Panel')
+            .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+            .addSubcommand(sub => sub.setName('panel').setDescription('Post the test request dropdown panel'))
+    ].map(command => command.toJSON());
+
+    try {
+        await rest.put(Routes.applicationCommands(client.user.id), { body: commands });
+        console.log('Successfully registered slash commands.');
+    } catch (error) {
+        console.error(error);
+    }
+});
+
+client.on('interactionCreate', async interaction => {
+    try {
+        if (interaction.isChatInputCommand()) {
+            if (interaction.commandName === 'qa') {
+                const sub = interaction.options.getSubcommand();
+                if (sub === 'panel') {
+                    const embed = new EmbedBuilder()
+                        .setTitle('🧪 QA Central Test Request')
+                        .setDescription('Select an option from the dropdown menu below to request a playtest for your game.')
+                        .setColor(0x3498DB);
+
+                    const row = new ActionRowBuilder().addComponents(
+                        new StringSelectMenuBuilder()
+                            .setCustomId('request_test_menu')
+                            .setPlaceholder('Click here to request a test...')
+                            .addOptions([{
+                                label: 'Scheduled Test',
+                                description: 'Request a playtest with timing and prize setup',
+                                value: 'scheduled_test',
+                                emoji: '📅'
+                            }])
+                    );
+
+                    await interaction.channel.send({ embeds: [embed], components: [row] });
+                    await interaction.reply({ content: '✅ Panel posted successfully!', ephemeral: true });
+                }
+            }
+        } 
+        else if (interaction.isStringSelectMenu()) {
+            if (interaction.customId === 'request_test_menu') {
+                await testHandler.handleSelectMenu(interaction, client);
+            }
+        } 
+        else if (interaction.isModalSubmit()) {
+            if (interaction.customId === 'test_create_modal') {
+                await testHandler.handleModal(interaction, client);
+            }
+        }
+        else if (interaction.isButton()) {
+            await interaction.reply({ content: 'This button is currently inactive or handled via threads.', ephemeral: true });
+        }
+    } catch (err) {
+        console.error('Interaction error:', err);
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({ content: 'An error occurred processing this interaction.', ephemeral: true }).catch(() => {});
         }
     }
-}
-
-// Load Events
-const eventsPath = path.join(__dirname, 'events');
-if (fs.existsSync(eventsPath)) {
-    const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
-    for (const file of eventFiles) {
-        const filePath = path.join(eventsPath, file);
-        const event = require(filePath);
-        if (event.once) {
-            client.once(event.name, (...args) => event.execute(...args, client));
-        } else {
-            client.on(event.name, (...args) => event.execute(...args, client));
-        }
-    }
-}
-
-process.on('unhandledRejection', error => {
-    console.error('Unhandled promise rejection:', error);
 });
 
 client.login(process.env.DISCORD_TOKEN);
