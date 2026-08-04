@@ -26,14 +26,13 @@ module.exports = {
             const upcomingChannel = interaction.options.getChannel('upcoming_channel');
             const testingChannel = interaction.options.getChannel('testing_channel');
 
-            // Save settings to client memory
             client.guildSettings.set(interaction.guildId, {
                 upcomingChannelId: upcomingChannel.id,
                 testingChannelId: testingChannel.id
             });
 
             const embed = new EmbedBuilder()
-                .setTitle('⚙️ QA Bot Setup Complete')
+                .setTitle('⚙️ QA Central Setup Complete')
                 .setDescription('The channels have been successfully configured for your QA community.')
                 .setColor(0x2ECC71)
                 .addFields(
