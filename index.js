@@ -4,6 +4,7 @@ const path = require('path');
 const http = require('http');
 require('dotenv').config();
 
+// HTTP server for Render deployment port binding requirement
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('QA Bot is running!\n');
@@ -25,9 +26,10 @@ const client = new Client({
 });
 
 client.commands = new Collection();
-client.activeTests = new Map(); 
-client.guildSettings = new Map(); // Stores setup channels per guild
+client.guildSettings = new Map(); // Stores configured channels per guild
+client.pendingTests = new Map();   // Temporary store for modal form inputs
 
+// Load Commands
 const commandsPath = path.join(__dirname, 'commands');
 if (fs.existsSync(commandsPath)) {
     const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
@@ -40,6 +42,7 @@ if (fs.existsSync(commandsPath)) {
     }
 }
 
+// Load Events
 const eventsPath = path.join(__dirname, 'events');
 if (fs.existsSync(eventsPath)) {
     const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
