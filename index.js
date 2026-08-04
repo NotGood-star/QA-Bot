@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, Partials, Collection, REST, Routes, SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+                                const { Client, GatewayIntentBits, Partials, Collection, REST, Routes, SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const http = require('http');
 require('dotenv').config();
 
@@ -24,9 +24,9 @@ client.CHANNELS = {
     UPCOMING_CHANNEL: '1533505439885693060',
     TESTING_CHANNEL: '1533505078064058550'
 };
-client.ROBUX_EMOJI = '<:robux:1503781043386319067>';
+client.ROBUX_EMOJI = '<:robux:1477933883617181857>';
+client.POLL_YES_EMOJI = '<:PollYes:776384252261433344>';
 
-// Load main test handler logic
 const testHandler = require('./commands/test.js');
 
 client.once('ready', async () => {
@@ -57,15 +57,15 @@ client.on('interactionCreate', async interaction => {
                     const embed = new EmbedBuilder()
                         .setTitle('🧪 QA Central Test Request')
                         .setDescription('Select an option from the dropdown menu below to request a playtest for your game.')
-                        .setColor(0x3498DB);
+                        .setColor(0x2B2D31);
 
                     const row = new ActionRowBuilder().addComponents(
                         new StringSelectMenuBuilder()
                             .setCustomId('request_test_menu')
-                            .setPlaceholder('Click here to request a test...')
+                            .setPlaceholder('Select to request a test...')
                             .addOptions([{
                                 label: 'Scheduled Test',
-                                description: 'Request a playtest with timing and prize setup',
+                                description: 'Request a playtest with game details and prize setup',
                                 value: 'scheduled_test',
                                 emoji: '📅'
                             }])
