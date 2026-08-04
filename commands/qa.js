@@ -1,47 +1,42 @@
-const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('qa')
-        .setDescription('Configure QA Bot channels and settings')
+        .setDescription('Post the QA Test Request Panel')
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addSubcommand(subcommand =>
             subcommand
-                .setName('setup')
-                .setDescription('Set up the upcoming tests and live testing channels')
-                .addChannelOption(option =>
-                    option.setName('upcoming_channel')
-                        .setDescription('Channel where upcoming tests are posted')
-                        .setRequired(true))
-                .addChannelOption(option =>
-                    option.setName('testing_channel')
-                        .setDescription('Channel where live tests are posted')
-                        .setRequired(true))
+                .setName('panel')
+                .setDescription('Post the interactive test request dropdown panel in this channel')
         ),
 
-    async execute(interaction, client) {
+    async execute(interaction) {
         const subcommand = interaction.options.getSubcommand();
 
-        if (subcommand === 'setup') {
-            const upcomingChannel = interaction.options.getChannel('upcoming_channel');
-            const testingChannel = interaction.options.getChannel('testing_channel');
-
-            client.guildSettings.set(interaction.guildId, {
-                upcomingChannelId: upcomingChannel.id,
-                testingChannelId: testingChannel.id
-            });
-
+        if (subcommand === 'panel') {
             const embed = new EmbedBuilder()
-                .setTitle('⚙️ QA Central Setup Complete')
-                .setDescription('The channels have been successfully configured for your QA community.')
-                .setColor(0x2ECC71)
-                .addFields(
-                    { name: 'Upcoming Tests Channel', value: `${upcomingChannel}`, inline: true },
-                    { name: 'Testing Channel', value: `${testingChannel}`, inline: true }
-                )
+                .setTitle('🧪 QA Central Test Request')
+                .setDescription('Select an option from the dropdown menu below to request a playtest for your game, just like the QA Central system!')
+                .setColor(0x3498DB)
                 .setTimestamp();
 
-            await interaction.reply({ embeds: [embed], ephemeral: true });
+            const row = new ActionRowBuilder().addComponents(
+                new StringSelectMenuBuilder()
+                    .setCustomId('request_test_menu')
+                    .setPlaceholder('Click here to request a test...')
+                    .addOptions([
+                        {
+                            label: 'Scheduled Test (Paid/Voluntary)',
+                            description: 'Request a playtest with custom time scheduling and prizes',
+                            value: 'scheduled_test',
+                            emoji: '📅'
+                        }
+                    ])
+            );
+
+            await interaction.channel.send({ embeds: [embed], components: [row] });
+            await interaction.reply({ content: '✅ QA Request panel posted successfully!', ephemeral: true });
         }
     }
 };
