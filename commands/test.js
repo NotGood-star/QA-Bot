@@ -1,18 +1,24 @@
 const { EmbedBuilder, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 
-function parseDuration(str) {
-    let totalMs = 0;
-    const days = str.match(/(\d+)\s*d/);
-    const hours = str.match(/(\d+)\s*h/);
-    const minutes = str.match(/(\d+)\s*m/);
-    const seconds = str.match(/(\d+)\s*s/);
+// Helper to extract Roblox Universe/Place ID from URL and fetch thumbnail automatically
+async function getRobloxThumbnail(url) {
+    try {
+        const match = url.match(/games\/(\d+)/) || url.match(/roblox\.com\/games\/(\d+)/);
+        if (!match) return null;
+        const placeId = match[1];
 
-    if (days) totalMs += parseInt(days[1]) * 24 * 60 * 60 * 1000;
-    if (hours) totalMs += parseInt(hours[1]) * 60 * 60 * 1000;
-    if (minutes) totalMs += parseInt(minutes[1]) * 60 * 1000;
-    if (seconds) totalMs += parseInt(seconds[1]) * 1000;
+        // Fetch universe ID from Roblox API using place ID
+        const res = await fetch(`https://apis.roblox.com/universes/v1/places/${placeId}/universe`);
+        const data = await res.json();
+        if (!data.universeId) return null;
 
-    return totalMs > 0 ? totalMs : 60000;
+        // Fetch icon thumbnail
+        const thumbRes = await fetch(`https://thumbnails.roblox.com/v1/games/icons?universeIds=${data.universeId}&returnPolicy=PlaceHolder&size=512x512&format=Png&isCircular=false`);
+        const thumbData = await thumbRes.json();
+        return thumbData.data?.[0]?.imageUrl || null;
+    } catch (e) {
+        return null;
+    }
 }
 
 module.exports = {
@@ -20,12 +26,12 @@ module.exports = {
         if (interaction.values[0] === 'scheduled_test') {
             const modal = new ModalBuilder()
                 .setCustomId('test_create_modal')
-                .setTitle('Test info');
+                .setTitle('QA Test Submission');
 
             modal.addComponents(
-                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('game_name').setLabel('Game name').setStyle(TextInputStyle.Short).setRequired(true)),
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('game_name').setLabel('Game Name').setStyle(TextInputStyle.Short).setRequired(true)),
                 new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('game_url').setLabel('Game URL').setStyle(TextInputStyle.Short).setPlaceholder('https://www.roblox.com/games/...').setRequired(true)),
-                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('game_pfp').setLabel('Game PFP Image URL').setStyle(TextInputStyle.Short).setPlaceholder('https://... (Image link)').setRequired(true)),
+                new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('requirements').setLabel('Requirements / Looking For').setStyle(TextInputStyle.Paragraph).setRequired(true)),
                 new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('max_testers').setLabel('Max Testers (e.g. 10)').setStyle(TextInputStyle.Short).setRequired(true)),
                 new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('prize').setLabel('Prize in Robux (e.g. 100)').setStyle(TextInputStyle.Short).setRequired(true))
             );
@@ -39,78 +45,46 @@ module.exports = {
 
         const gameName = interaction.fields.getTextInputValue('game_name');
         const gameUrl = interaction.fields.getTextInputValue('game_url');
-        const gamePfp = interaction.fields.getTextInputValue('game_pfp');
+        const requirements = interaction.fields.getTextInputValue('requirements');
         const maxTesters = interaction.fields.getTextInputValue('max_testers');
         const prize = interaction.fields.getTextInputValue('prize');
 
-        const startMs = parseDuration('10m'); 
-        const durationMs = parseDuration('1h');
-
-        const startTimeTimestamp = Math.floor((Date.now() + startMs) / 1000);
-        const endTimeTimestamp = Math.floor((Date.now() + startMs + durationMs) / 1000);
+        // Automatically fetch game thumbnail from Roblox URL if possible
+        const fetchedPfp = await getRobloxThumbnail(gameUrl);
+        const gamePfp = fetchedPfp || interaction.guild.iconURL() || 'https://i.imgur.com/AfFp7pu.png';
 
         const upcomingChannel = interaction.guild.channels.cache.get(client.CHANNELS.UPCOMING_CHANNEL);
-        const testingChannel = interaction.guild.channels.cache.get(client.CHANNELS.TESTING_CHANNEL);
 
-        if (!upcomingChannel || !testingChannel) {
-            return await interaction.editReply({ content: '❌ Target channels could not be found by their IDs!' });
+        if (!upcomingChannel) {
+            return await interaction.editReply({ content: '❌ Target upcoming channel could not be found by its ID!' });
         }
 
+        // Clean, structured modern embed look
         const upcomingEmbed = new EmbedBuilder()
             .setTitle(`🟡 UPCOMING TEST • ${gameName}`)
-            .setDescription(`### ${prize} ${client.ROBUX_EMOJI} Prize Pool`)
-            .setColor(0xF1C40F)
+            .setDescription(`### Prize: ${prize} ${client.ROBUX_EMOJI}`)
+            .setColor(0xFEE75C)
             .setThumbnail(gamePfp)
             .addFields(
-                { name: '🎮 Game Name', value: gameName, inline: false },
-                { name: '🔗 Game Link', value: gameUrl, inline: false },
-                { name: '👥 Max Testers', value: maxTesters, inline: true },
-                { name: '⏰ Starts In', value: `<t:${startTimeTimestamp}:R>`, inline: true },
+                { name: '🎮 Game Name', value: `\`${gameName}\``, inline: true },
+                { name: '👥 Max Testers', value: `\`${maxTesters}\``, inline: true },
+                { name: '🔗 Game Link', value: `[Click Here to View Game](${gameUrl})`, inline: false },
+                { name: '📋 Requirements', value: requirements, inline: false },
                 { name: '👤 Hosted By', value: `${interaction.user}`, inline: false }
-            );
+            )
+            .setFooter({ text: 'QA Central Testing System', iconURL: client.user.displayAvatarURL() })
+            .setTimestamp();
 
         const upcomingMsg = await upcomingChannel.send({ embeds: [upcomingEmbed] });
-        await interaction.editReply({ content: `✅ Success! Test submitted to upcoming channel.` });
 
-        setTimeout(async () => {
-            try {
-                await upcomingMsg.delete().catch(() => {});
+        // Also automatically start a thread right away for the upcoming test if desired
+        const thread = await upcomingMsg.startThread({ 
+            name: `🧪・${gameName}`, 
+            autoArchiveDuration: 60 
+        });
+        
+        await thread.send(`${client.POLL_YES_EMOJI} Test thread created for **${gameName}**! Hosted by ${interaction.user}.\nGame Link: ${gameUrl}`);
 
-                const liveEmbed = new EmbedBuilder()
-                    .setTitle(`🟢 LIVE TEST • ${gameName}`)
-                    .setDescription(`### ${prize} ${client.ROBUX_EMOJI} Prize Pool`)
-                    .setColor(0x2ECC71)
-                    .setThumbnail(gamePfp)
-                    .addFields(
-                        { name: '🎮 Game Name', value: gameName, inline: false },
-                        { name: '🔗 Game Link', value: gameUrl, inline: false },
-                        { name: '👥 Joined Testers', value: `0/${maxTesters}`, inline: true },
-                        { name: '⏰ Ends At', value: `<t:${endTimeTimestamp}:R>`, inline: true },
-                        { name: '👤 Hosted By', value: `${interaction.user}`, inline: false }
-                    );
-
-                const liveMsg = await testingChannel.send({ embeds: [liveEmbed] });
-                const thread = await liveMsg.startThread({ name: `🎮 Test • ${gameName}`, autoArchiveDuration: 60 });
-                await thread.send(`Welcome to the live test thread for **${gameName}** hosted by ${interaction.user}!\nPlay here: ${gameUrl}`);
-
-                setTimeout(async () => {
-                    try {
-                        const endedEmbed = new EmbedBuilder()
-                            .setTitle(`🔴 TEST ENDED • ${gameName}`)
-                            .setColor(0x7F8C8D)
-                            .setThumbnail(gamePfp)
-                            .addFields({ name: 'Status', value: 'Completed', inline: true });
-
-                        await liveMsg.edit({ embeds: [endedEmbed], components: [] });
-                        await thread.setLocked(true, 'Test concluded.');
-                    } catch (e) {
-                        console.error('End timer error:', e);
-                    }
-                }, durationMs);
-
-            } catch (e) {
-                console.error('Start timer error:', e);
-            }
-        }, startMs);
+        await interaction.editReply({ content: `✅ Success! Test submitted to the upcoming channel.` });
     }
 };
