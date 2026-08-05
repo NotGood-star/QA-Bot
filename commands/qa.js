@@ -17,8 +17,8 @@ module.exports = {
         if (subcommand === 'panel') {
             const embed = new EmbedBuilder()
                 .setTitle('🧪 QA Central Test Request')
-                .setDescription('Select an option from the dropdown menu below to request a playtest for your game, just like the QA Central system!')
-                .setColor(0x3498DB)
+                .setDescription('Select an option from the dropdown menu below to request a playtest for your game.')
+                .setColor(0x2B2D31)
                 .setTimestamp();
 
             const row = new ActionRowBuilder().addComponents(
@@ -27,8 +27,8 @@ module.exports = {
                     .setPlaceholder('Click here to request a test...')
                     .addOptions([
                         {
-                            label: 'Scheduled Test (Paid/Voluntary)',
-                            description: 'Request a playtest with custom time scheduling and prizes',
+                            label: 'Scheduled Test',
+                            description: 'Request a playtest with game details, timing, and prize setup',
                             value: 'scheduled_test',
                             emoji: '📅'
                         }
