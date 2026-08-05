@@ -58,6 +58,9 @@ module.exports = {
                     new TextInputBuilder().setCustomId('game_url').setLabel('Game URL').setStyle(TextInputStyle.Short).setPlaceholder('https://www.roblox.com/games/...').setRequired(true)
                 ),
                 new ActionRowBuilder().addComponents(
+                    new TextInputBuilder().setCustomId('max_testers').setLabel('Max Testers').setStyle(TextInputStyle.Short).setPlaceholder('10').setRequired(true)
+                ),
+                new ActionRowBuilder().addComponents(
                     new TextInputBuilder().setCustomId('start_time').setLabel('Start Time Duration (e.g. 10m, 1h)').setStyle(TextInputStyle.Short).setPlaceholder('10m').setRequired(true)
                 ),
                 new ActionRowBuilder().addComponents(
@@ -79,6 +82,7 @@ module.exports = {
 
         const gameName = interaction.fields.getTextInputValue('game_name');
         const gameUrl = interaction.fields.getTextInputValue('game_url');
+        const maxTesters = interaction.fields.getTextInputValue('max_testers');
         const startTimeStr = interaction.fields.getTextInputValue('start_time');
         const endTimeStr = interaction.fields.getTextInputValue('end_time');
         const prize = interaction.fields.getTextInputValue('prize');
@@ -99,6 +103,7 @@ module.exports = {
             return await interaction.editReply({ content: `❌ Could not find Upcoming or Testing channels! Ensure IDs are correct.` });
         }
 
+        // Upcoming Embed
         const upcomingEmbed = new EmbedBuilder()
             .setTitle(`🟡 UPCOMING TEST • ${gameName}`)
             .setDescription(`### Prize: ${prize} Robux`)
@@ -106,8 +111,8 @@ module.exports = {
             .setThumbnail(gamePfp)
             .addFields(
                 { name: '🎮 Game Name', value: `\`${gameName}\``, inline: true },
-                { name: '💰 Prize', value: `${prize} Robux`, inline: true },
-                { name: '🔗 Game Link', value: `[Click Here to View Game](${gameUrl})`, inline: false },
+                { name: '👥 Max Testers', value: `\`${maxTesters}\``, inline: true },
+                { name: '💰 Prize', value: `${prize} Robux`, inline: false },
                 { name: '⏰ Starts At', value: `<t:${startTimeTimestamp}:t> (<t:${startTimeTimestamp}:R>)`, inline: false },
                 { name: '👤 Hosted By', value: `${interaction.user}`, inline: false }
             )
@@ -115,12 +120,13 @@ module.exports = {
             .setTimestamp();
 
         const upcomingRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('view_details').setLabel('📋 View Details').setStyle(ButtonStyle.Secondary).setDisabled(true)
+            new ButtonBuilder().setStyle(ButtonStyle.Link).setURL(gameUrl).setLabel('🎮 Play Game')
         );
 
         const upcomingMsg = await upcomingChannel.send({ embeds: [upcomingEmbed], components: [upcomingRow] });
         await interaction.editReply({ content: `✅ Test submitted successfully! Posted to Upcoming Tests channel.` });
 
+        // Timer to move to Active Testing Channel
         setTimeout(async () => {
             try {
                 await upcomingMsg.delete().catch(() => {});
@@ -132,8 +138,8 @@ module.exports = {
                     .setThumbnail(gamePfp)
                     .addFields(
                         { name: '🎮 Game Name', value: `\`${gameName}\``, inline: true },
-                        { name: '💰 Prize', value: `${prize} Robux`, inline: true },
-                        { name: '🔗 Game Link', value: `[Click Here to Play](${gameUrl})`, inline: false },
+                        { name: '👥 Max Testers', value: `\`${maxTesters}\``, inline: true },
+                        { name: '💰 Prize', value: `${prize} Robux`, inline: false },
                         { name: '⏰ Ends At', value: `<t:${endTimeTimestamp}:t> (<t:${endTimeTimestamp}:R>)`, inline: false },
                         { name: '👤 Hosted By', value: `${interaction.user}`, inline: false }
                     )
@@ -141,8 +147,7 @@ module.exports = {
                     .setTimestamp();
 
                 const liveRow = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('join_test').setLabel('✅ Join Test').setStyle(ButtonStyle.Success),
-                    new ButtonBuilder().setCustomId('report_bug').setLabel('🐞 Report Bug').setStyle(ButtonStyle.Secondary)
+                    new ButtonBuilder().setStyle(ButtonStyle.Link).setURL(gameUrl).setLabel('🎮 Play Game')
                 );
 
                 const liveMsg = await testingChannel.send({ embeds: [liveEmbed], components: [liveRow] });
@@ -157,6 +162,7 @@ module.exports = {
                     content: `Test thread created for **${gameName}**! Hosted by ${interaction.user}.\nPlay here: ${gameUrl}`
                 });
 
+                // Timer to end test
                 setTimeout(async () => {
                     try {
                         const endedEmbed = new EmbedBuilder()
