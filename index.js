@@ -1,7 +1,8 @@
-                                const { Client, GatewayIntentBits, Partials, Collection, REST, Routes, SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, Collection, REST, Routes, SlashCommandBuilder, PermissionFlagsBits, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
 const http = require('http');
 require('dotenv').config();
 
+// Render port binder to keep web service alive
 const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
     res.end('QA Central Bot is running!\n');
@@ -78,6 +79,8 @@ client.on('interactionCreate', async interaction => {
         } 
         else if (interaction.isStringSelectMenu()) {
             if (interaction.customId === 'request_test_menu') {
+                // Keep the dropdown active and reusable indefinitely
+                await interaction.message.edit({ components: interaction.message.components }).catch(() => {});
                 await testHandler.handleSelectMenu(interaction, client);
             }
         } 
@@ -85,9 +88,6 @@ client.on('interactionCreate', async interaction => {
             if (interaction.customId === 'test_create_modal') {
                 await testHandler.handleModal(interaction, client);
             }
-        }
-        else if (interaction.isButton()) {
-            await interaction.reply({ content: 'This button is currently inactive or handled via threads.', ephemeral: true });
         }
     } catch (err) {
         console.error('Interaction error:', err);
