@@ -58,16 +58,13 @@ module.exports = {
                     new TextInputBuilder().setCustomId('game_url').setLabel('Game URL').setStyle(TextInputStyle.Short).setPlaceholder('https://www.roblox.com/games/...').setRequired(true)
                 ),
                 new ActionRowBuilder().addComponents(
-                    new TextInputBuilder().setCustomId('max_testers').setLabel('Max Testers').setStyle(TextInputStyle.Short).setPlaceholder('10').setRequired(true)
-                ),
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder().setCustomId('start_time').setLabel('Start Time Duration (e.g. 10m, 1h)').setStyle(TextInputStyle.Short).setPlaceholder('10m').setRequired(true)
-                ),
-                new ActionRowBuilder().addComponents(
-                    new TextInputBuilder().setCustomId('end_time').setLabel('End Time Duration (e.g. 1h, 2h)').setStyle(TextInputStyle.Short).setPlaceholder('1h').setRequired(true)
+                    new TextInputBuilder().setCustomId('timing').setLabel('Start & End Time (e.g. 10m | 1h)').setStyle(TextInputStyle.Short).setPlaceholder('10m | 1h').setRequired(true)
                 ),
                 new ActionRowBuilder().addComponents(
                     new TextInputBuilder().setCustomId('prize').setLabel('Prize in Robux').setStyle(TextInputStyle.Short).setPlaceholder('100').setRequired(true)
+                ),
+                new ActionRowBuilder().addComponents(
+                    new TextInputBuilder().setCustomId('max_testers').setLabel('Max Testers (Optional)').setStyle(TextInputStyle.Short).setPlaceholder('Leave blank or put number').setRequired(false)
                 )
             );
 
@@ -82,13 +79,13 @@ module.exports = {
 
         const gameName = interaction.fields.getTextInputValue('game_name');
         const gameUrl = interaction.fields.getTextInputValue('game_url');
-        const maxTesters = interaction.fields.getTextInputValue('max_testers');
-        const startTimeStr = interaction.fields.getTextInputValue('start_time');
-        const endTimeStr = interaction.fields.getTextInputValue('end_time');
+        const timingRaw = interaction.fields.getTextInputValue('timing');
         const prize = interaction.fields.getTextInputValue('prize');
+        const maxTesters = interaction.fields.getTextInputValue('max_testers') || 'Unlimited';
 
-        const startMs = parseDuration(startTimeStr);
-        const durationMs = parseDuration(endTimeStr);
+        const parts = timingRaw.split('|').map(p => p.trim());
+        const startMs = parseDuration(parts[0] || '10m');
+        const durationMs = parseDuration(parts[1] || '1h');
 
         const startTimeTimestamp = Math.floor((Date.now() + startMs) / 1000);
         const endTimeTimestamp = Math.floor((Date.now() + startMs + durationMs) / 1000);
@@ -103,7 +100,6 @@ module.exports = {
             return await interaction.editReply({ content: `❌ Could not find Upcoming or Testing channels! Ensure IDs are correct.` });
         }
 
-        // Upcoming Embed
         const upcomingEmbed = new EmbedBuilder()
             .setTitle(`🟡 UPCOMING TEST • ${gameName}`)
             .setDescription(`### Prize: ${prize} Robux`)
@@ -126,7 +122,6 @@ module.exports = {
         const upcomingMsg = await upcomingChannel.send({ embeds: [upcomingEmbed], components: [upcomingRow] });
         await interaction.editReply({ content: `✅ Test submitted successfully! Posted to Upcoming Tests channel.` });
 
-        // Timer to move to Active Testing Channel
         setTimeout(async () => {
             try {
                 await upcomingMsg.delete().catch(() => {});
@@ -162,7 +157,6 @@ module.exports = {
                     content: `Test thread created for **${gameName}**! Hosted by ${interaction.user}.\nPlay here: ${gameUrl}`
                 });
 
-                // Timer to end test
                 setTimeout(async () => {
                     try {
                         const endedEmbed = new EmbedBuilder()
