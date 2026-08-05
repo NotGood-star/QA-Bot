@@ -6,10 +6,6 @@ const CHANNELS = {
     TESTING_CHANNEL: '1533505078064058550'
 };
 
-const ROBUX_EMOJI = '<:robux:1477933883617181857>';
-const POLL_YES_EMOJI = '<:PollYes:776384252261433344>';
-
-// Helper to parse timing strings like 10m, 1h, 1d
 function parseDuration(str) {
     let totalMs = 0;
     const days = str.match(/(\d+)\s*d/);
@@ -22,7 +18,7 @@ function parseDuration(str) {
     if (minutes) totalMs += parseInt(minutes[1]) * 60 * 1000;
     if (seconds) totalMs += parseInt(seconds[1]) * 1000;
 
-    return totalMs > 0 ? totalMs : 60000; // Default to 1m if empty/invalid
+    return totalMs > 0 ? totalMs : 60000;
 }
 
 async function getRobloxThumbnail(url) {
@@ -62,10 +58,10 @@ module.exports = {
                     new TextInputBuilder().setCustomId('game_url').setLabel('Game URL').setStyle(TextInputStyle.Short).setPlaceholder('https://www.roblox.com/games/...').setRequired(true)
                 ),
                 new ActionRowBuilder().addComponents(
-                    new TextInputBuilder().setCustomId('timing').setLabel('Start In & Duration (e.g. 10m | 1h)').setStyle(TextInputStyle.Short).setPlaceholder('10m | 1h').setRequired(true)
+                    new TextInputBuilder().setCustomId('start_time').setLabel('Start Time Duration (e.g. 10m, 1h)').setStyle(TextInputStyle.Short).setPlaceholder('10m').setRequired(true)
                 ),
                 new ActionRowBuilder().addComponents(
-                    new TextInputBuilder().setCustomId('max_testers').setLabel('Max Testers').setStyle(TextInputStyle.Short).setPlaceholder('10').setRequired(true)
+                    new TextInputBuilder().setCustomId('end_time').setLabel('End Time Duration (e.g. 1h, 2h)').setStyle(TextInputStyle.Short).setPlaceholder('1h').setRequired(true)
                 ),
                 new ActionRowBuilder().addComponents(
                     new TextInputBuilder().setCustomId('prize').setLabel('Prize in Robux').setStyle(TextInputStyle.Short).setPlaceholder('100').setRequired(true)
@@ -83,17 +79,12 @@ module.exports = {
 
         const gameName = interaction.fields.getTextInputValue('game_name');
         const gameUrl = interaction.fields.getTextInputValue('game_url');
-        const timingRaw = interaction.fields.getTextInputValue('timing');
-        const maxTesters = interaction.fields.getTextInputValue('max_testers');
+        const startTimeStr = interaction.fields.getTextInputValue('start_time');
+        const endTimeStr = interaction.fields.getTextInputValue('end_time');
         const prize = interaction.fields.getTextInputValue('prize');
 
-        // Parse timing strings (e.g., "10m | 1h" or "30m 2h")
-        const parts = timingRaw.split('|').map(p => p.trim());
-        const startInStr = parts[0] || '10m';
-        const durationStr = parts[1] || '1h';
-
-        const startMs = parseDuration(startInStr);
-        const durationMs = parseDuration(durationStr);
+        const startMs = parseDuration(startTimeStr);
+        const durationMs = parseDuration(endTimeStr);
 
         const startTimeTimestamp = Math.floor((Date.now() + startMs) / 1000);
         const endTimeTimestamp = Math.floor((Date.now() + startMs + durationMs) / 1000);
@@ -101,46 +92,92 @@ module.exports = {
         const fetchedPfp = await getRobloxThumbnail(gameUrl);
         const gamePfp = fetchedPfp || interaction.guild.iconURL() || 'https://i.imgur.com/AfFp7pu.png';
 
+        const upcomingChannel = interaction.guild.channels.cache.get(CHANNELS.UPCOMING_CHANNEL);
         const testingChannel = interaction.guild.channels.cache.get(CHANNELS.TESTING_CHANNEL);
 
-        if (!testingChannel) {
-            return await interaction.editReply({ content: `❌ Could not find Active Testing Channel! Ensure ID is correct.` });
+        if (!upcomingChannel || !testingChannel) {
+            return await interaction.editReply({ content: `❌ Could not find Upcoming or Testing channels! Ensure IDs are correct.` });
         }
 
-        // Build Live Test Embed with Dynamic Discord Timestamps
-        const liveEmbed = new EmbedBuilder()
-            .setTitle(`🟢 LIVE TEST • ${gameName}`)
-            .setDescription(`### Prize: ${prize} ${ROBUX_EMOJI}`)
-            .setColor(0x2ECC71)
+        const upcomingEmbed = new EmbedBuilder()
+            .setTitle(`🟡 UPCOMING TEST • ${gameName}`)
+            .setDescription(`### Prize: ${prize} Robux`)
+            .setColor(0xF1C40F)
             .setThumbnail(gamePfp)
             .addFields(
                 { name: '🎮 Game Name', value: `\`${gameName}\``, inline: true },
-                { name: '👥 Max Testers', value: `\`${maxTesters}\``, inline: true },
-                { name: '🔗 Game Link', value: `[Click Here to Play](${gameUrl})`, inline: false },
-                { name: '⏰ Starts At', value: `<t:${startTimeTimestamp}:t> (<t:${startTimeTimestamp}:R>)`, inline: true },
-                { name: '⏰ Ends At', value: `<t:${endTimeTimestamp}:t> (<t:${endTimeTimestamp}:R>)`, inline: true },
+                { name: '💰 Prize', value: `${prize} Robux`, inline: true },
+                { name: '🔗 Game Link', value: `[Click Here to View Game](${gameUrl})`, inline: false },
+                { name: '⏰ Starts At', value: `<t:${startTimeTimestamp}:t> (<t:${startTimeTimestamp}:R>)`, inline: false },
                 { name: '👤 Hosted By', value: `${interaction.user}`, inline: false }
             )
             .setFooter({ text: 'QA Central Testing System', iconURL: interaction.client.user.displayAvatarURL() })
             .setTimestamp();
 
-        const liveRow = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('join_test').setLabel('✅ Join Test').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId('report_bug').setLabel('🐞 Report Bug').setStyle(ButtonStyle.Secondary)
+        const upcomingRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('view_details').setLabel('📋 View Details').setStyle(ButtonStyle.Secondary).setDisabled(true)
         );
 
-        const liveMsg = await testingChannel.send({ embeds: [liveEmbed], components: [liveRow] });
+        const upcomingMsg = await upcomingChannel.send({ embeds: [upcomingEmbed], components: [upcomingRow] });
+        await interaction.editReply({ content: `✅ Test submitted successfully! Posted to Upcoming Tests channel.` });
 
-        const thread = await liveMsg.startThread({
-            name: `🧪・${gameName}`,
-            autoArchiveDuration: 60,
-            reason: 'Playtest live discussion thread'
-        });
+        setTimeout(async () => {
+            try {
+                await upcomingMsg.delete().catch(() => {});
 
-        await thread.send({
-            content: `${POLL_YES_EMOJI} Test thread created for **${gameName}**! Hosted by ${interaction.user}.\nPlay here: ${gameUrl}`
-        });
+                const liveEmbed = new EmbedBuilder()
+                    .setTitle(`🟢 LIVE TEST • ${gameName}`)
+                    .setDescription(`### Prize: ${prize} Robux`)
+                    .setColor(0x2ECC71)
+                    .setThumbnail(gamePfp)
+                    .addFields(
+                        { name: '🎮 Game Name', value: `\`${gameName}\``, inline: true },
+                        { name: '💰 Prize', value: `${prize} Robux`, inline: true },
+                        { name: '🔗 Game Link', value: `[Click Here to Play](${gameUrl})`, inline: false },
+                        { name: '⏰ Ends At', value: `<t:${endTimeTimestamp}:t> (<t:${endTimeTimestamp}:R>)`, inline: false },
+                        { name: '👤 Hosted By', value: `${interaction.user}`, inline: false }
+                    )
+                    .setFooter({ text: 'QA Central Testing System', iconURL: interaction.client.user.displayAvatarURL() })
+                    .setTimestamp();
 
-        await interaction.editReply({ content: `✅ Test submitted successfully with start/end tracking active!` });
+                const liveRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('join_test').setLabel('✅ Join Test').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId('report_bug').setLabel('🐞 Report Bug').setStyle(ButtonStyle.Secondary)
+                );
+
+                const liveMsg = await testingChannel.send({ embeds: [liveEmbed], components: [liveRow] });
+
+                const thread = await liveMsg.startThread({
+                    name: `🧪・${gameName}`,
+                    autoArchiveDuration: 60,
+                    reason: 'Playtest live discussion thread'
+                });
+
+                await thread.send({
+                    content: `Test thread created for **${gameName}**! Hosted by ${interaction.user}.\nPlay here: ${gameUrl}`
+                });
+
+                setTimeout(async () => {
+                    try {
+                        const endedEmbed = new EmbedBuilder()
+                            .setTitle(`🔴 TEST ENDED • ${gameName}`)
+                            .setColor(0x7F8C8D)
+                            .addFields(
+                                { name: 'Developer', value: `${interaction.user}`, inline: true },
+                                { name: 'Status', value: 'Completed', inline: true }
+                            )
+                            .setTimestamp();
+
+                        await liveMsg.edit({ embeds: [endedEmbed], components: [] });
+                        await thread.setLocked(true, 'Test concluded.');
+                    } catch (err) {
+                        console.error('Error ending test:', err);
+                    }
+                }, durationMs);
+
+            } catch (err) {
+                console.error('Error transitioning test to live:', err);
+            }
+        }, startMs);
     }
 };
