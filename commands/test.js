@@ -1,26 +1,5 @@
 const { EmbedBuilder, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 
-// Helper to extract Roblox Universe/Place ID from URL and fetch thumbnail automatically
-async function getRobloxThumbnail(url) {
-    try {
-        const match = url.match(/games\/(\d+)/) || url.match(/roblox\.com\/games\/(\d+)/);
-        if (!match) return null;
-        const placeId = match[1];
-
-        // Fetch universe ID from Roblox API using place ID
-        const res = await fetch(`https://apis.roblox.com/universes/v1/places/${placeId}/universe`);
-        const data = await res.json();
-        if (!data.universeId) return null;
-
-        // Fetch icon thumbnail
-        const thumbRes = await fetch(`https://thumbnails.roblox.com/v1/games/icons?universeIds=${data.universeId}&returnPolicy=PlaceHolder&size=512x512&format=Png&isCircular=false`);
-        const thumbData = await thumbRes.json();
-        return thumbData.data?.[0]?.imageUrl || null;
-    } catch (e) {
-        return null;
-    }
-}
-
 module.exports = {
     async handleSelectMenu(interaction, client) {
         if (interaction.values[0] === 'scheduled_test') {
@@ -49,22 +28,16 @@ module.exports = {
         const maxTesters = interaction.fields.getTextInputValue('max_testers');
         const prize = interaction.fields.getTextInputValue('prize');
 
-        // Automatically fetch game thumbnail from Roblox URL if possible
-        const fetchedPfp = await getRobloxThumbnail(gameUrl);
-        const gamePfp = fetchedPfp || interaction.guild.iconURL() || 'https://i.imgur.com/AfFp7pu.png';
-
         const upcomingChannel = interaction.guild.channels.cache.get(client.CHANNELS.UPCOMING_CHANNEL);
 
         if (!upcomingChannel) {
             return await interaction.editReply({ content: '❌ Target upcoming channel could not be found by its ID!' });
         }
 
-        // Clean, structured modern embed look
         const upcomingEmbed = new EmbedBuilder()
             .setTitle(`🟡 UPCOMING TEST • ${gameName}`)
             .setDescription(`### Prize: ${prize} ${client.ROBUX_EMOJI}`)
             .setColor(0xFEE75C)
-            .setThumbnail(gamePfp)
             .addFields(
                 { name: '🎮 Game Name', value: `\`${gameName}\``, inline: true },
                 { name: '👥 Max Testers', value: `\`${maxTesters}\``, inline: true },
@@ -77,7 +50,6 @@ module.exports = {
 
         const upcomingMsg = await upcomingChannel.send({ embeds: [upcomingEmbed] });
 
-        // Also automatically start a thread right away for the upcoming test if desired
         const thread = await upcomingMsg.startThread({ 
             name: `🧪・${gameName}`, 
             autoArchiveDuration: 60 
