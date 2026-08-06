@@ -30,6 +30,7 @@ client.POLL_YES_EMOJI = '<:PollYes:776384252261433344>';
 
 const testHandler = require('./commands/test.js');
 const roleHandler = require('./commands/role.js');
+const sayHandler = require('./commands/say.js');
 
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
@@ -40,7 +41,8 @@ client.once('ready', async () => {
             .setDescription('Post the QA Test Request Panel')
             .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
             .addSubcommand(sub => sub.setName('panel').setDescription('Post the test request dropdown panel')),
-        roleHandler.data.toJSON()
+        roleHandler.data,
+        sayHandler.data
     ].map(command => command.toJSON());
 
     try {
@@ -79,11 +81,12 @@ client.on('interactionCreate', async interaction => {
                 }
             } else if (interaction.commandName === 'role') {
                 await roleHandler.execute(interaction);
+            } else if (interaction.commandName === 'say') {
+                await sayHandler.execute(interaction);
             }
         } 
         else if (interaction.isStringSelectMenu()) {
             if (interaction.customId === 'request_test_menu') {
-                // Keep the dropdown active and reusable indefinitely
                 await interaction.message.edit({ components: interaction.message.components }).catch(() => {});
                 await testHandler.handleSelectMenu(interaction, client);
             } else if (interaction.customId === 'role_select_menu') {
