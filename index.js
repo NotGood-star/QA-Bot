@@ -29,6 +29,7 @@ client.ROBUX_EMOJI = '<:robux:1477933883617181857>';
 client.POLL_YES_EMOJI = '<:PollYes:776384252261433344>';
 
 const testHandler = require('./commands/test.js');
+const roleHandler = require('./commands/role.js');
 
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
@@ -38,7 +39,8 @@ client.once('ready', async () => {
             .setName('qa')
             .setDescription('Post the QA Test Request Panel')
             .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-            .addSubcommand(sub => sub.setName('panel').setDescription('Post the test request dropdown panel'))
+            .addSubcommand(sub => sub.setName('panel').setDescription('Post the test request dropdown panel')),
+        roleHandler.data.toJSON()
     ].map(command => command.toJSON());
 
     try {
@@ -75,6 +77,8 @@ client.on('interactionCreate', async interaction => {
                     await interaction.channel.send({ embeds: [embed], components: [row] });
                     await interaction.reply({ content: '✅ Panel posted successfully!', ephemeral: true });
                 }
+            } else if (interaction.commandName === 'role') {
+                await roleHandler.execute(interaction);
             }
         } 
         else if (interaction.isStringSelectMenu()) {
@@ -82,6 +86,8 @@ client.on('interactionCreate', async interaction => {
                 // Keep the dropdown active and reusable indefinitely
                 await interaction.message.edit({ components: interaction.message.components }).catch(() => {});
                 await testHandler.handleSelectMenu(interaction, client);
+            } else if (interaction.customId === 'role_select_menu') {
+                await roleHandler.handleSelectMenu(interaction);
             }
         } 
         else if (interaction.isModalSubmit()) {
